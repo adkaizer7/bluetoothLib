@@ -293,7 +293,7 @@ public class BluetoothService{
 	
 
 	
-	public int getPairedDevices(ArrayList<PairedBTDevices> pairedDevicesList) {
+	public void getPairedDevices(ArrayList<PairedBTDevices> pairedDevicesList) {
  
         Set<BluetoothDevice> pairedBTDevices = mBluetoothAdapter.getBondedDevices();
  
@@ -304,9 +304,9 @@ public class BluetoothService{
             }    		
         } 
         //TODO:
-        return ((int)pairedBTDevices.size());
+        //return ((int)pairedBTDevices.size());
         //or
-        //bluetoothInterface.finishedObtainingPairedDevices(pairedDevicesList);
+        bluetoothInterface.onFinishedObtainingPairedDevices(pairedDevicesList);
    }
 	
 
