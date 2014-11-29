@@ -18,5 +18,15 @@ public class UnpairedBTDevices extends BluetoothHealthMonitoringDevice implement
 		this.macAddress = macAdd;
 	}
 	
+	public String getName(){
+		return this.getBlutoothDevice().getName();
+		
+	}
+	
+	public String getAddress(){
+		return this.getBlutoothDevice().getAddress();
+	}
+
+	
 
 }

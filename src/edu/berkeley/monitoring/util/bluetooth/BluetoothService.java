@@ -10,9 +10,6 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
 
-//import com.example.bluetoothsample.BluetoothChat;
-
-
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -26,6 +23,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
+//import com.example.bluetoothsample.BluetoothChat;
 
 /**
  * @author  Adarsh
@@ -129,12 +127,9 @@ public class BluetoothService{
 
     //Context of parent application.
     private Activity parentActivity;
-	
-    //Since we haven't paired with these devices yet, we only know their name 
-    //and not other details
-    private ArrayList<UnpairedBTDevices> listOfUnpairedDevices;
-    
-    private BluetoothInterface bluetoothInterface; 
+	    
+    private BluetoothInterface bluetoothInterface;  
+
     
     /**
      * Constructor. Prepares a new BluetoothChat session.
@@ -154,9 +149,7 @@ public class BluetoothService{
         if (mBluetoothAdapter == null) {
         	throw new BluetoothExceptions(BluetoothExceptions.CANNOT_TURN_ON_BLUETOOTH);
         }
-        else{
-        	//Allocate memory for listOfUnpairedDevices and listOfPairedDevices;
-        	listOfUnpairedDevices = new ArrayList<UnpairedBTDevices>(); 
+        else{ 
 
         	// Register for broadcasts when a device is discovered
         	IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
@@ -164,7 +157,7 @@ public class BluetoothService{
 
         	// Register for broadcasts when discovery has finished
         	filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-        	parentActivity.registerReceiver(mReceiver, filter);   
+        	parentActivity.registerReceiver(mReceiver, filter);  
         	
         	mState = StateFlags.STATE_NONE;
         }        
@@ -249,6 +242,7 @@ public class BluetoothService{
         }
         // Request discover from BluetoothAdapter
         mBluetoothAdapter.startDiscovery();
+        
 	}//TODO: throw error
 	
 
@@ -306,7 +300,7 @@ public class BluetoothService{
         //TODO:
         //return ((int)pairedBTDevices.size());
         //or
-        bluetoothInterface.onFinishedObtainingPairedDevices(pairedDevicesList);
+        bluetoothInterface.onFinishedObtainingPairedDevices();
    }
 	
 
@@ -337,12 +331,7 @@ public class BluetoothService{
         	throw new BluetoothExceptions(BluetoothExceptions.NO_PAIRED_DEVICES);
         }        	
 	}
-
-	//TODO
-	public ArrayList<UnpairedBTDevices> getUnpairedDevices() {
-		return listOfUnpairedDevices;
-	}
-
+	
     /**
      * Setting the state of the Bluetooth Service
      */    
@@ -677,11 +666,13 @@ public class BluetoothService{
                 if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
                 	UnpairedBTDevices unpairedBTDevice = new UnpairedBTDevices(device.getName(),
                 											 device.getAddress(),device);
-                	listOfUnpairedDevices.add(unpairedBTDevice);
-                	bluetoothInterface.onObtainedOneUnpairedDevices(device.getName() + "\n" + device.getAddress());
+                	//listUnpairedBTDevice.add(unpairedBTDevice);
+                	bluetoothInterface.onObtainedOneUnpairedDevices(unpairedBTDevice);
                 }
             // When discovery is finished, change the Activity title
             } else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
+            	if (D)
+            		Log.e(TAG,"Finished Scanning from library");
             	bluetoothInterface.onFinishedScanning();
             }
         }
