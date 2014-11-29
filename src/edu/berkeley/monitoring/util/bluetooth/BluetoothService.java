@@ -26,7 +26,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
-import android.widget.Toast;
 
 /**
  * @author  Adarsh
@@ -144,7 +143,7 @@ public class BluetoothService{
      */    
     
 	public BluetoothService(Activity parAct, Handler handler, BluetoothInterface bleInt)  throws BluetoothExceptions{
-
+		if(D) Log.e(TAG, "++ BluetoothService Constructor Invoked ++");
         parentActivity = parAct;
         mHandler = handler;
         mState = StateFlags.STATE_NONE;
