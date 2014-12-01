@@ -6,6 +6,7 @@ package edu.berkeley.monitoring.util.bluetooth;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
@@ -159,6 +160,10 @@ public class BluetoothService{
         	filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
         	parentActivity.registerReceiver(mReceiver, filter);  
         	
+        	// Register for broadcasts when pairing is initiated
+    		IntentFilter intent = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+    		parentActivity.registerReceiver(mPairReceiver, intent);
+        	
         	mState = StateFlags.STATE_NONE;
         }        
 	}
@@ -250,11 +255,24 @@ public class BluetoothService{
 	 * 
 	 * @param address : The MAC address of the device to be connected to
 	 */
-	public void connectToDevice(String address){
-        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
+	public void connectToDevice(PairedBTDevices device){
+		BluetoothDevice deviceToConnect = mBluetoothAdapter.getRemoteDevice(device.getAddress());
         // Attempt to connect to the device
-        this.connect(device);
-	}	
+        this.connect(deviceToConnect);
+	}
+	
+	public void pairToDevice(UnpairedBTDevices device){
+		// Make a bluetooth device object from the unpaired device object
+		BluetoothDevice deviceToPair = mBluetoothAdapter.getRemoteDevice(device.getAddress());
+
+		// Attempt pairing with device
+		try {
+            Method method = deviceToPair.getClass().getMethod("createBond", (Class[]) null);
+            method.invoke(deviceToPair, (Object[]) null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }       
+	}
 	
 	/**
 	 * Return the state of the bluetooth adapter
@@ -676,5 +694,31 @@ public class BluetoothService{
             	bluetoothInterface.onFinishedScanning();
             }
         }
-    };   
+    };
+    
+    private final BroadcastReceiver mPairReceiver = new BroadcastReceiver() {
+	    public void onReceive(Context context, Intent intent) {
+	        String action = intent.getAction();
+	        
+	        if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {	        	
+	        	 final int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.ERROR);
+	        	 final int prevState = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE, BluetoothDevice.ERROR);
+	        	 
+	        	 if (state == BluetoothDevice.BOND_BONDED && prevState == BluetoothDevice.BOND_BONDING) {
+	        		 Message msg = mHandler.obtainMessage(BluetoothService.MESSAGE_TOAST);
+	                 Bundle bundle = new Bundle();
+	                 bundle.putString(BluetoothService.TOAST, "Paired");
+	                 msg.setData(bundle);
+	                 mHandler.sendMessage(msg);
+	        	 }
+	        	 else if (state == BluetoothDevice.BOND_NONE && prevState == BluetoothDevice.BOND_BONDED){
+	        		 Message msg = mHandler.obtainMessage(BluetoothService.MESSAGE_TOAST);
+	                 Bundle bundle = new Bundle();
+	                 bundle.putString(BluetoothService.TOAST, "Paired");
+	                 msg.setData(bundle);
+	                 mHandler.sendMessage(msg);
+	        	 }
+	        }
+	    }
+	};
 }

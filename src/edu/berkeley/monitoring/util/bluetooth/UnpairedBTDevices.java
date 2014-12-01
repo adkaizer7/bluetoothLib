@@ -12,7 +12,7 @@ public class UnpairedBTDevices extends BluetoothHealthMonitoringDevice implement
 	public String deviceName;
 	public String macAddress;
 	
-	public UnpairedBTDevices(String devName, String macAdd,BluetoothDevice dev){
+	public UnpairedBTDevices(String devName, String macAdd, BluetoothDevice dev){
 		super(dev);
 		this.deviceName = devName;
 		this.macAddress = macAdd;
