@@ -2,6 +2,9 @@ package edu.berkeley.monitoring.util.bluetooth;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OptionalDataException;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.UUID;
@@ -54,17 +57,16 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
   
     //Thread to start connection
     //Message handler
-    private final Handler mHandler;
+    //private final Handler mHandler;
+    private BTDeviceHandlerInterface btDeviceHandler;
     
     public static final int STATE_NONE = 14;
 
 
-	public PairedBTDevices(BluetoothDevice dev, Handler handler){
+	public PairedBTDevices(BluetoothDevice dev){
 		super(dev);
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         mState = StateFlags.STATE_NONE;
-        //TODO 
-        mHandler = handler;
 	}	
 	
 	public String getName(){
@@ -91,6 +93,14 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
     void setState(StateFlags state){
     	mState = state;
     	return;
+    }
+    
+    /**
+     * 
+     * @param handler
+     */
+    public void registerHandler(BTDeviceHandlerInterface handler) {
+    	this.btDeviceHandler = handler;
     }
 	
 	/**Connect to a device
@@ -284,11 +294,12 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
         mConnectedThread.start();
         // Send the name of the connected device back to the UI Activity
         MessageFlags msgFlags = MessageFlags.MESSAGE_DEVICE_NAME;
-        Message msg = mHandler.obtainMessage(msgFlags.getValue());
-        Bundle bundle = new Bundle();
-        bundle.putString(BluetoothService.DEVICE_NAME, device.getName());
-        msg.setData(bundle);
-        mHandler.sendMessage(msg);
+        btDeviceHandler.onConnect();
+//        Message msg = mHandler.obtainMessage(msgFlags.getValue());
+//        Bundle bundle = new Bundle();
+//        bundle.putString(BluetoothService.DEVICE_NAME, device.getName());
+//        msg.setData(bundle);
+//        mHandler.sendMessage(msg);
         setState(StateFlags.STATE_CONNECTED);
     }
     
@@ -320,23 +331,35 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
         
         public void run() {
             Log.i(TAG, "BEGIN mConnectedThread");
-            byte[] buffer = new byte[1024];
-            int bytes;
+            //byte[] buffer = new byte[1024];
+            //int bytes;
             // Keep listening to the InputStream while connected
             while (true) {
+            	ObjectInputStream ois;
                 try {
                     MessageFlags msgFlags = MessageFlags.MESSAGE_READ;
+                    
+                    ois = new ObjectInputStream(mmInStream);
                 	// Read from the InputStream
-                    bytes = mmInStream.read(buffer);
+                    BTSendableInterface<?> myObj = (BTSendableInterface<?>) ois.readObject();
+                    
+                    btDeviceHandler.onReceive(myObj);
+                    //bytes = mmInStream.read(buffer);
                     // Send the obtained bytes to the UI Activity
                     
-                    mHandler.obtainMessage(msgFlags.getValue(), bytes, -1, buffer)
-                            .sendToTarget();
-                } catch (IOException e) {
+                    //mHandler.obtainMessage(msgFlags.getValue(), bytes, -1, buffer)
+                    //        .sendToTarget();
+                } catch (OptionalDataException e) {
+					
+				} catch (IOException e) {
                     Log.e(TAG, "disconnected", e);
                     connectionLost();
                     break;
-                }
+                } catch (ClassNotFoundException e) {
+					btDeviceHandler.onFailure(e);
+				} finally {
+					
+				}
             }
         }
 
@@ -344,13 +367,15 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
          * Write to the connected OutStream.
          * @param buffer  The bytes to write
          */
-        private void write(byte[] buffer) {
+        private void write(BTSendableInterface<?> o) {
             try {
             	MessageFlags msgFlags = MessageFlags.MESSAGE_WRITE;
-                mmOutStream.write(buffer);
+            	ObjectOutputStream oos = new ObjectOutputStream(mmOutStream);
+            	oos.writeObject(o);
+                //mmOutStream.write(buffer);
                 // Share the sent message back to the UI Activity
-                mHandler.obtainMessage(msgFlags.getValue(), -1, -1, buffer)
-                        .sendToTarget();
+                //mHandler.obtainMessage(msgFlags.getValue(), -1, -1, buffer)
+                //        .sendToTarget();
             } catch (IOException e) {
                 Log.e(TAG, "Exception during write", e);
             }
@@ -369,7 +394,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
      * @param out The bytes to write
      * @see ConnectedThread#write(byte[])
      */
-    public void write(byte[] out) {
+    public void write(BTSendableInterface<?> o) {
         // Create temporary object
         ConnectedThread r;
         // Synchronize a copy of the ConnectedThread
@@ -378,7 +403,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
             r = mConnectedThread;
         }
         // Perform the write unsynchronized
-        r.write(out);
+        r.write(o);
     }    
         
     /**
@@ -388,11 +413,12 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
     	MessageFlags msgFlags = MessageFlags.MESSAGE_TOAST;
         setState(StateFlags.STATE_LISTEN);
         // Send a failure message back to the Activity
-        Message msg = mHandler.obtainMessage(msgFlags.getValue());
-        Bundle bundle = new Bundle();
-        bundle.putString(BluetoothService.TOAST, "Unable to connect device");
-        msg.setData(bundle);
-        mHandler.sendMessage(msg);
+//        Message msg = mHandler.obtainMessage(msgFlags.getValue());
+//        Bundle bundle = new Bundle();
+//        bundle.putString(BluetoothService.TOAST, "Unable to connect device");
+//        msg.setData(bundle);
+//        mHandler.sendMessage(msg);
+        btDeviceHandler.onFailure(new Exception()); // TODO: fix
     }
     
     /**
@@ -402,11 +428,12 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
     	MessageFlags msgFlags = MessageFlags.MESSAGE_TOAST;
         setState(StateFlags.STATE_LISTEN);
         // Send a failure message back to the Activity
-        Message msg = mHandler.obtainMessage(msgFlags.getValue());
-        Bundle bundle = new Bundle();
-        bundle.putString(BluetoothService.TOAST, "Device connection was lost");
-        msg.setData(bundle);
-        mHandler.sendMessage(msg);
+//        Message msg = mHandler.obtainMessage(msgFlags.getValue());
+//        Bundle bundle = new Bundle();
+//        bundle.putString(BluetoothService.TOAST, "Device connection was lost");
+//        msg.setData(bundle);
+//        mHandler.sendMessage(msg);
+        // TODO: Big fix
     }
     
     /**
