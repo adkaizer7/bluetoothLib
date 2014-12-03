@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">BluetoothSampleApp</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+    <string name="stringTurnOnBT">Turn on Bluetooth</string>
+    <string name="stringEnlistPairedDevices">Enlist Paired Devices</string>
+    <string name="title_activity_list_paired_devices">ListPairedDevices</string>
+    <string name="stringTitlePairedDevices">Paired Devices</string>
+    <string name="noPairedDevices">No Devices currently paired</string>
+    <string name="noUnpairedDevices">No Devices currently visibile</string>
+    <string name="stringStartScan">Begin Scan</string>
+    <string name="stringMakeDiscoverable">Make Discoverable</string>
+    <string name="title_activity_list_unpaired_devices">ListUnpairedDevices</string>
+    <string name="stringTitleUnpairedDevices">Unpaired Devices</string>
+
+</resources>
