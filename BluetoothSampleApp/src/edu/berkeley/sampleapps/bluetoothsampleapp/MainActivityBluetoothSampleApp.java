@@ -307,7 +307,7 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
                 String address = data.getExtras()
                                      .getString(ListPairedDevices.SELECTED_PAIRED_DEVICE);
                 // Attempt to connect to the device
-                PairedBTDevices pairedBTDevice = bluetoothServiceHandler.pairToDevice(address);
+                PairedBTDevices pairedBTDevice = bluetoothServiceHandler.getPairedDeviceFromAddress(address);
                 pairedBTDevice.registerHandler(this);
                 pairedBTDevice.connect();
                 
@@ -357,7 +357,9 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
 	}
 	
 	public void onFailure(){
-		Toast.makeText(this, "Cannot connect to device", Toast.LENGTH_SHORT).show();
+		String a = new String();
+		a = "name";
+//		Toast.makeText(getApplicationContext(), "Cannot connect to device", Toast.LENGTH_SHORT).show();
 	}
 }
 

@@ -414,7 +414,7 @@ public class BluetoothService{
         }        	
 	}
        
-	public PairedBTDevices pairToDevice(String address){
+	public PairedBTDevices getPairedDeviceFromAddress(String address){
 			PairedBTDevices retDevice = null; 
 	        //If there are paired devices, add each one to the ArrayList
 	        if (pairedDevicesList.size() > 0) {
