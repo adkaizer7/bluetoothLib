@@ -182,34 +182,40 @@ public class BluetoothService{
             BluetoothSocket socket = null;
             // Listen to the server socket if we're not connected
             while (mState != StateFlags.STATE_CONNECTED) {
-                try {
-                    // This is a blocking call and will only return on a
-                    // successful connection or an exception
-                    socket = mmServerSocket.accept();
-                } catch (IOException e) {
-                    Log.e(TAG, "accept() failed", e);
-                    break;
+                if (mState == StateFlags.STATE_LISTEN){
+	            	try {
+	                    // This is a blocking call and will only return on a
+	                    // successful connection or an exception
+	                    socket = mmServerSocket.accept();
+	                } catch (IOException e) {
+	                    Log.e(TAG, "accept() failed", e);
+	                    break;
+	                }
                 }
                 // If a connection was accepted
                 if (socket != null) {
-                	int requesterID = -1;
                     synchronized (this) {
                         switch (mState) {                        
                         case STATE_LISTEN:
+                        case STATE_CONNECTING:
                           BluetoothDevice requester = socket.getRemoteDevice();
           	        	  for (int i = 0; i < pairedDevicesList.size(); i++){
         	        		  String devAddress = pairedDevicesList.get(i).getAddress();
         	        		  if (devAddress.equals(requester.getAddress())){
-        	        			  requesterID = i;
-        	        			  setState(StateFlags.STATE_CONNECTING);
+        	        			  setState(StateFlags.STATE_CONNECTED);
+        	        			  PairedBTDevices pairedDevice = pairedDevicesList.get(i); 
+        	        			  pairedDevice.connected(socket, socket.getRemoteDevice());
+
+        	        			  break;
         	        		  }
+                          /*for (PairedBTDevices pairedDevice : pairedDevicesList){
+                        	  if (requester.getAddress().equals(pairedDevice.getAddress())){
+                        		  setState(StateFlags.STATE_CONNECTED);
+                        		  pairedDevice.connected(socket, socket.getRemoteDevice());
+                        	  }
+          	        	  }*/
           	        	  }
           	        	break;
-                        case STATE_CONNECTING:
-                            // Situation normal. Start the connected thread.
-                        	pairedDevicesList.get(requesterID).connected(socket, socket.getRemoteDevice());
-                        	setState(StateFlags.STATE_CONNECTED);
-                            break;
                         case STATE_NONE:
                         case STATE_NOT_CONNECTED:
                         case STATE_CONNECTED:
