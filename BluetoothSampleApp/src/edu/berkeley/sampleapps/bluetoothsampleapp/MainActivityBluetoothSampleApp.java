@@ -354,7 +354,7 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
 	public void onReceive(BTSendable<?> o){		
 		
 		String str = (String)o.getObj();
-        mConversationArrayAdapter.add(str);		
+        //mConversationArrayAdapter.add(str);		
 		
 	}
 	public void onFailure(Exception e){
