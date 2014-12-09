@@ -33,7 +33,11 @@ enum StateFlags{
 	STATE_CONNECTING,
 	STATE_CONNECTED,
 	STATE_LISTEN,
-	STATE_NONE
+	STATE_NONE, 
+	STATE_RETRYCONNECTING,
+	STATE_RETRYCONNECT1,
+	STATE_RETRYCONNECT2, 
+	STATE_RETRYCONNECTING2
 }
 
 //TODO
@@ -111,14 +115,6 @@ public class BluetoothService{
         	throw new BluetoothExceptions(BluetoothExceptions.CANNOT_TURN_ON_BLUETOOTH);
         }
         else{
-        	
-        	// start listener for incoming connections
-        	
-        	if (mAcceptThread == null) {
-        		setState(StateFlags.STATE_LISTEN);
-                mAcceptThread = new AcceptThread();
-                mAcceptThread.start();
-            }
 
         	// Register for broadcasts when a device is discovered
         	IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
@@ -143,7 +139,7 @@ public class BluetoothService{
                 	pairedDevicesList.add(pairedDevice);               	
                 	//pairedDevice.start();
                 }    
-                pairedDevicesList.get(4).start();
+                
             }
             //TODO:
             //return ((int)pairedBTDevices.size());
@@ -227,6 +223,8 @@ public class BluetoothService{
                                 Log.e(TAG, "Could not close unwanted socket", e);
                             }
                             break;
+						default:
+							break;
                         }
                     }
                 }
@@ -265,6 +263,28 @@ public class BluetoothService{
 			
 	}//TODO : throw error
 	
+	/**
+	 * Begin accepting connections from the environment.
+	 */
+	public void beginAccept(){
+    	// start listener for incoming connections
+    	if (mAcceptThread == null) {
+    		setState(StateFlags.STATE_LISTEN);
+            mAcceptThread = new AcceptThread();
+            mAcceptThread.start();
+        }
+	}
+	
+	/**
+	 * End accepting connections from the environment.
+	 */
+	public void endAccept(AcceptThread mAcceptThread){
+		if (mAcceptThread != null){
+			setState(StateFlags.STATE_NONE);
+			mAcceptThread.cancel();
+		}
+	}
+
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if(D) Log.d(TAG, "onActivityResult " + resultCode);
         switch (requestCode) {

@@ -9,5 +9,6 @@ public interface BluetoothInterface {
 	public void onFinishedObtainingPairedDevices();
 	public void onFinishObtainingUnpairedDevices();
 	public void onSwitchingonBluetooth();
+	public void onBeginAccept();
 	//public String pickDeviceToPairWith(String address);
 }

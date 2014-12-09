@@ -45,12 +45,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
     private ConnectedThread mConnectedThread;   
     
     
-    // Message types sent from the BluetoothChatService Handler
-    public static final int MESSAGE_STATE_CHANGE = 9;
-    public static final int MESSAGE_READ = 10;
-    public static final int MESSAGE_WRITE =11;
-    public static final int MESSAGE_DEVICE_NAME = 12;
-    public static final int MESSAGE_TOAST = 13;
+
     //TODO     
     MessageFlags msgFlags;
   
@@ -134,7 +129,15 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
         // Start the thread to connect with the given device
         mConnectThread = new ConnectThread(btDevice);
         mConnectThread.start();
+        if (mState == StateFlags.STATE_RETRYCONNECT1) {
+        	setState(StateFlags.STATE_RETRYCONNECTING);
+        }
+        else if (mState == StateFlags.STATE_RETRYCONNECT2){
+        	setState(StateFlags.STATE_RETRYCONNECTING2);
+        }
+        else {
         setState(StateFlags.STATE_CONNECTING);
+        }
     }
 
     /**
@@ -172,7 +175,12 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
             	Log.d(TAG, "Tried making socket");
                 mmSocket.connect();
             } catch (IOException e) {
+            	if (mState == StateFlags.STATE_RETRYCONNECTING) {
+            		connectionLost();
+            	}
+            	else {
                 connectionFailed();
+            	}
                 // Close the socket
                 try {
                     mmSocket.close();
@@ -336,32 +344,21 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
      * Indicate that the connection attempt failed and notify the UI Activity.
      */
     private void connectionFailed() {
-    	if(D)
-    		Log.d(TAG,"connectionFailed()");
-    	MessageFlags msgFlags = MessageFlags.MESSAGE_TOAST;
         setState(StateFlags.STATE_LISTEN);
-        // Send a failure message back to the Activity
-//        Message msg = mHandler.obtainMessage(msgFlags.getValue());
-//        Bundle bundle = new Bundle();
-//        bundle.putString(BluetoothService.TOAST, "Unable to connect device");
-//        msg.setData(bundle);
-//        mHandler.sendMessage(msg);
-//        btDeviceHandler.onFailure(new Exception()); // TODO: fix
+        btDeviceHandler.onFailure(new Exception()); // TODO: fix
     }
     
     /**
      * Indicate that the connection was lost and notify the UI Activity.
      */
     private void connectionLost() {
-    	//MessageFlags msgFlags = MessageFlags.MESSAGE_TOAST;
-        setState(StateFlags.STATE_LISTEN);
-        //btDeviceHandler.onFailure(e)//Adarsh
-        // Send a failure message back to the Activity
-//        Message msg = mHandler.obtainMessage(msgFlags.getValue());
-//        Bundle bundle = new Bundle();
-//        bundle.putString(BluetoothService.TOAST, "Device connection was lost");
-//        msg.setData(bundle);
-//        mHandler.sendMessage(msg);
+    	if (mState != StateFlags.STATE_RETRYCONNECTING){
+	        setState(StateFlags.STATE_RETRYCONNECT1);
+    	}
+    	else{
+    		setState(StateFlags.STATE_RETRYCONNECT2);
+    	}
+    	this.connect();
         // TODO: Big fix
     }
     

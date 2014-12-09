@@ -35,6 +35,7 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
     private Button mStartScan;
     private Button mMakeDiscoverable;
     private Button mEnlistPairedDevices;
+    private Button mBeginAccept;
     private Activity thisActivity = this;
     public static ArrayList<PairedBTDevices> listPairedDevices;
     public static ArrayList<UnpairedBTDevices> listUnpairedDevices;
@@ -142,6 +143,13 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
         	
         });
         
+        mBeginAccept = (Button) findViewById(R.id.buttonBeginAccept);
+        mBeginAccept.setOnClickListener(new OnClickListener(){
+        	public void onClick(View v){
+        		bluetoothServiceHandler.beginAccept();
+        	}
+        });
+        
         /**
          * mConnect2Device = (Button) findViewById(R.id.button_connect2device);
          
@@ -212,6 +220,10 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
 	@Override
 	public void onFinishObtainingUnpairedDevices() {
 		// TODO Auto-generated method stub
+		
+	}
+	
+	public void onBeginAccept(){
 		
 	}
 	

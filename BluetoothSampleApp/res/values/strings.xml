@@ -15,5 +15,6 @@
     <string name="title_activity_list_unpaired_devices">ListUnpairedDevices</string>
     <string name="stringTitleUnpairedDevices">Unpaired Devices</string>
     <string name="stringSend">Send Text</string>
+    <string name="beginAccept">Start Listening</string>
 
 </resources>
