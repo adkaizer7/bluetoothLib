@@ -98,8 +98,8 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
         mConversationView.setAdapter(mConversationArrayAdapter);
         //Initialize the compose field with a listener for the return key
         mOutEditText = (EditText) findViewById(R.id.editTextOut);
-        //mOutEditText.setOnEditorActionListener(mWriteListener);
-        // Initialize the send button with a listener that for click events
+        
+     
         mTurnOnBluetooth = (Button) findViewById(R.id.buttonTurnOnBT);
         mTurnOnBluetooth.setOnClickListener(new OnClickListener() {
             public void onClick(View v) {
@@ -107,6 +107,7 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
             }
         });
         
+        // Initialize the send button with a listener that for click events       
         mSendButton = (Button) findViewById(R.id.buttonSend);
         mSendButton.setOnClickListener(new OnClickListener(){
         	public void onClick(View v){
@@ -228,8 +229,9 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
 		
 	}
 	
-	public void onIncomingConnection(PairedBTDevices pairedDevice){
-        pairedDevice.registerHandler(this);
+	public void onIncomingConnection(PairedBTDevices device){
+        device.registerHandler(this);
+        pairedDevice = device;
 	}
 	
     // The Handler that gets information back from the BluetoothChatService
@@ -311,9 +313,9 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
                 String address = data.getExtras()
                                      .getString(ListPairedDevices.SELECTED_PAIRED_DEVICE);
                 // Attempt to connect to the device
-                PairedBTDevices pairedBTDevice = bluetoothServiceHandler.getPairedDeviceFromAddress(address);
-                pairedBTDevice.registerHandler(this);
-                pairedBTDevice.connect();
+                pairedDevice = bluetoothServiceHandler.getPairedDeviceFromAddress(address);
+                pairedDevice.registerHandler(this);
+                pairedDevice.connect();
                 
             }
 
@@ -348,8 +350,11 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
 		// TODO Auto-generated method stub
 		listPairedDevices.add(pairedBTDevice);		
 	}
-	
-	public void onReceive(BTSendableInterface<?> o){
+
+	public void onReceive(BTSendable<?> o){		
+		
+		String str = (String)o.getObj();
+        mConversationArrayAdapter.add(str);		
 		
 	}
 	public void onFailure(Exception e){
@@ -365,6 +370,12 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
 		a = "name";
 //		Toast.makeText(getApplicationContext(), "Cannot connect to device", Toast.LENGTH_SHORT).show();
 	}
+
+	
+	/*public void onReceive(BTSendableInterface<?> o) {
+		// TODO Auto-generated method stub
+		
+	}*/
 }
 
 

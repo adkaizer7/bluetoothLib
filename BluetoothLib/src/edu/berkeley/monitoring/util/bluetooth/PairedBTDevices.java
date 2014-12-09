@@ -101,7 +101,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
     /**
      * Start the chat service. Specifically start AcceptThread to begin a
      * session in listening (server) mode. Called by the Activity onResume() */
-    public synchronized void start() {
+    /*public synchronized void start() {
         if (D) Log.d(TAG, "start");
         // Cancel any thread attempting to make a connection
         if (mConnectThread != null) {mConnectThread.cancel(); mConnectThread = null;}
@@ -110,7 +110,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
         // Start the thread to listen on a BluetoothServerSocket
         
         setState(StateFlags.STATE_LISTEN);
-    }
+    }*/
 
 	
     /**
@@ -229,13 +229,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
         mConnectedThread = new ConnectedThread(socket);
         mConnectedThread.start();
         // Send the name of the connected device back to the UI Activity
-        //MessageFlags msgFlags = MessageFlags.MESSAGE_DEVICE_NAME;
         btDeviceHandler.onConnect(device.getName());
-//        Message msg = mHandler.obtainMessage(msgFlags.getValue());
-//        Bundle bundle = new Bundle();
-//        bundle.putString(BluetoothService.DEVICE_NAME, device.getName());
-//        msg.setData(bundle);
-//        mHandler.sendMessage(msg);
         setState(StateFlags.STATE_CONNECTED);
     }
     
@@ -276,7 +270,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
                    
                     ois = new ObjectInputStream(mmInStream);
                 	// Read from the InputStream
-                    BTSendableInterface<?> myObj = (BTSendableInterface<?>) ois.readObject();
+                    BTSendable<?> myObj = (BTSendable<?>) ois.readObject();
                     
                     btDeviceHandler.onReceive(myObj);
                     //bytes = mmInStream.read(buffer);
@@ -300,14 +294,10 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
          * Write to the connected OutStream.
          * @param buffer  The bytes to write
          */
-        private void write(BTSendableInterface<?> o) {
+        private void write(BTSendable<?> o) {
             try {
             	ObjectOutputStream oos = new ObjectOutputStream(mmOutStream);
             	oos.writeObject(o);
-                //mmOutStream.write(buffer);
-                // Share the sent message back to the UI Activity
-                //mHandler.obtainMessage(msgFlags.getValue(), -1, -1, buffer)
-                //        .sendToTarget();
             } catch (IOException e) {
                 Log.e(TAG, "Exception during write", e);
             }
@@ -326,7 +316,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
      * @param out The bytes to write
      * @see ConnectedThread#write(byte[])
      */
-    public void write(BTSendableInterface<?> o) {
+    public void write(BTSendable<?> o) {
         // Create temporary object
         ConnectedThread r;
         // Synchronize a copy of the ConnectedThread
@@ -336,13 +326,14 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
         }
         // Perform the write unsynchronized
         r.write(o);
+        //STATE_LISTEN
     }    
         
     /**
      * Indicate that the connection attempt failed and notify the UI Activity.
      */
     private void connectionFailed() {
-        setState(StateFlags.STATE_LISTEN);
+        setState(StateFlags.STATE_NONE);
         btDeviceHandler.onFailure(); // TODO: fix
     }
     
