@@ -17,11 +17,11 @@
         android:layout_toRightOf="@+id/buttonTurnOnBT"
         android:text="@string/stringMakeDiscoverable" />
     
-        <Button
+    <Button
         android:id="@+id/buttonBeginAccept"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignBottom="@+id/buttonMakeDiscoverable"
+        android:layout_alignTop="@+id/buttonMakeDiscoverable"
         android:text="@string/beginAccept" />
 
     <Button

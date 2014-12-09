@@ -187,8 +187,6 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
                 } catch (IOException e2) {
                     Log.e(TAG, "unable to close() socket during connection failure", e2);
                 }
-                // Start the service over to restart listening mode
-                PairedBTDevices.this.start();
                 return;
                 //getBluetoothService()
             }
@@ -291,7 +289,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
                     connectionLost();
                     break;
                 } catch (ClassNotFoundException e) {
-					btDeviceHandler.onFailure(e);
+					btDeviceHandler.onFailure();
 				} finally {
 					
 				}
@@ -345,7 +343,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
      */
     private void connectionFailed() {
         setState(StateFlags.STATE_LISTEN);
-        btDeviceHandler.onFailure(new Exception()); // TODO: fix
+        btDeviceHandler.onFailure(); // TODO: fix
     }
     
     /**

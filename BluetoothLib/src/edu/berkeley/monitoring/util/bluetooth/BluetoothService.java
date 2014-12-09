@@ -94,7 +94,7 @@ public class BluetoothService{
     //Context of parent application.
     private Activity parentActivity;
 	    
-    private BluetoothInterface bluetoothInterface;  
+    private BluetoothInterface bluetoothInterface;
 
     
     /**
@@ -135,7 +135,7 @@ public class BluetoothService{
             //If there are paired devices, add each one to the ArrayList
             if (pairedBTDevices.size() > 0) {
                 for (BluetoothDevice device : pairedBTDevices) {
-                	pairedDevice = new PairedBTDevices(device);        
+                	pairedDevice = new PairedBTDevices(device);
                 	pairedDevicesList.add(pairedDevice);               	
                 	//pairedDevice.start();
                 }    
@@ -203,10 +203,8 @@ public class BluetoothService{
         	        			  requesterID = i;
         	        			  setState(StateFlags.STATE_CONNECTING);
         	        		  }
-        	        		  else {
-        	        			  setState(StateFlags.STATE_CONNECTED);
-        	        		  }
           	        	  }
+          	        	break;
                         case STATE_CONNECTING:
                             // Situation normal. Start the connected thread.
                         	pairedDevicesList.get(requesterID).connected(socket, socket.getRemoteDevice());
