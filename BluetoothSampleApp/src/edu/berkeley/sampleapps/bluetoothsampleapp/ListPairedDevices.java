@@ -1,12 +1,19 @@
 package edu.berkeley.sampleapps.bluetoothsampleapp;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
 import edu.berkeley.monitoring.util.bluetooth.PairedBTDevices;
 
 public class ListPairedDevices extends Activity {
@@ -15,6 +22,7 @@ public class ListPairedDevices extends Activity {
 	
     private static final boolean D = true;
     private static final String TAG = "ListPairedDevices";
+    public static final String SELECTED_PAIRED_DEVICE = "Selected Device";
     
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -30,6 +38,7 @@ public class ListPairedDevices extends Activity {
         mPairedDevicesArrayAdapter = new ArrayAdapter<String>(this, R.layout.device_name);
         ListView pairedListView = (ListView) findViewById(R.id.listViewPairedBTdevices);
         pairedListView.setAdapter(mPairedDevicesArrayAdapter);
+        pairedListView.setOnItemClickListener(mDeviceClickListener);
         // Get a set of currently paired devices
         // If there are paired devices, add each one to the ArrayAdapter
         if (MainActivityBluetoothSampleApp.listPairedDevices.size() > 0) {
@@ -43,6 +52,26 @@ public class ListPairedDevices extends Activity {
         }
         
 	}
+	
+    // The on-click listener for all devices in the ListViews
+    private OnItemClickListener mDeviceClickListener = new OnItemClickListener() {
+        @SuppressLint("NewApi") public void onItemClick(AdapterView<?> av, View v, int arg2, long arg3) {
+            // Cancel discovery because it's costly and we're about to connect
+            //TODO
+        	//mBtAdapter.cancelDiscovery();
+            // Get the device MAC address, which is the last 17 chars in the View
+            String info = ((TextView) v).getText().toString();
+            String address = info.substring(info.length() - 17);           
+        
+    		Intent intent = new Intent();
+    		intent.putExtra(SELECTED_PAIRED_DEVICE, address);
+            // Set result and finish this Activity
+            setResult(Activity.RESULT_OK, intent);
+            finish();   
+            
+        }
+    };
+	
 	
 	/**@Override
 	public void onStart(){		

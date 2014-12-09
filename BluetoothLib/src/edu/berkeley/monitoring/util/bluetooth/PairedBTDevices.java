@@ -29,18 +29,17 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
 	
 
 	
-    // Name for the SDP record when creating server socket
-    private static final String NAME = "BluetoothChat";
+
 
     // Unique UUID for this application
-    public static final UUID MY_UUID = UUID.fromString("fa87c0d0-afac-11de-8a39-0800200c9a66");
+    //public static final UUID MY_UUID = UUID.fromString("fa87c0d0-afac-11de-8a39-0800200c9a66");
+    public static final UUID MY_UUID = UUID.fromString("e302e180-7efd-11e4-80c6-0002a5d5c51b");
     
 	
     //Current state of the connection
     private StateFlags mState;
     
     //Thread to accept connections
-    private AcceptThread mAcceptThread;
     private ConnectThread mConnectThread;
     //Thread running communication.
     private ConnectedThread mConnectedThread;   
@@ -67,8 +66,8 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
 		super(dev);
 		mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         mState = StateFlags.STATE_NONE;
-	}	
-	
+	}
+
 	public String getName(){
 		return this.getBlutoothDevice().getName();
 		
@@ -77,7 +76,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
 	public String getAddress(){
 		return this.getBlutoothDevice().getAddress();
 	}
-	
+
 	
 	/**
 	 * Return the state of the bluetooth adapter
@@ -114,10 +113,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
         // Cancel any thread currently running a connection
         if (mConnectedThread != null) {mConnectedThread.cancel(); mConnectedThread = null;}
         // Start the thread to listen on a BluetoothServerSocket
-        if (mAcceptThread == null) {
-            mAcceptThread = new AcceptThread();
-            mAcceptThread.start();
-        }
+        
         setState(StateFlags.STATE_LISTEN);
     }
 
@@ -127,7 +123,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
      * @param device  The BluetoothDevice to connect
      */
     public synchronized void connect() {
-    	BluetoothDevice device = this.device;
+    	BluetoothDevice btDevice = this.device;
         if (D) Log.d(TAG, "connect to: " + device);
         // Cancel any thread attempting to make a connection
         if (mState == StateFlags.STATE_CONNECTING) {
@@ -136,7 +132,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
         // Cancel any thread currently running a connection
         if (mConnectedThread != null) {mConnectedThread.cancel(); mConnectedThread = null;}
         // Start the thread to connect with the given device
-        mConnectThread = new ConnectThread(device);
+        mConnectThread = new ConnectThread(btDevice);
         mConnectThread.start();
         setState(StateFlags.STATE_CONNECTING);
     }
@@ -150,6 +146,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
         private final BluetoothSocket mmSocket;
         private final BluetoothDevice mmDevice;
         public ConnectThread(BluetoothDevice device) {
+        	Log.d(TAG, "ConnectThread instantiated");
             mmDevice = device;
             BluetoothSocket tmp = null;
             // Get a BluetoothSocket for a connection with the
@@ -159,6 +156,8 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
             } catch (IOException e) {
                 Log.e(TAG, "create() failed", e);
             }
+            if(D)
+            	Log.d(TAG,"mmSocket initialized");
             mmSocket = tmp;
         }
         public void run() {
@@ -170,6 +169,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
             try {
                 // This is a blocking call and will only return on a
                 // successful connection or an exception
+            	Log.d(TAG, "Tried making socket");
                 mmSocket.connect();
             } catch (IOException e) {
                 connectionFailed();
@@ -180,8 +180,9 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
                     Log.e(TAG, "unable to close() socket during connection failure", e2);
                 }
                 // Start the service over to restart listening mode
-                start();
+                PairedBTDevices.this.start();
                 return;
+                //getBluetoothService()
             }
             // Reset the ConnectThread because we're done
             synchronized (this) {
@@ -204,67 +205,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
      * like a server-side client. It runs until a connection is accepted
      * (or until cancelled).
      */
-    private class AcceptThread extends Thread {
-        // The local server socket
-        private final BluetoothServerSocket mmServerSocket;
-        public AcceptThread() {
-            BluetoothServerSocket tmp = null;
-            // Create a new listening server socket
-            try {
-                tmp = mBluetoothAdapter.listenUsingRfcommWithServiceRecord(NAME, MY_UUID);
-            } catch (IOException e) {
-                Log.e(TAG, "listen() failed", e);
-            }
-            mmServerSocket = tmp;
-        }
-        public void run() {
-            if (D) Log.d(TAG, "BEGIN mAcceptThread" + this);
-            setName("AcceptThread");
-            BluetoothSocket socket = null;
-            // Listen to the server socket if we're not connected
-            while (mState != StateFlags.STATE_CONNECTED) {
-                try {
-                    // This is a blocking call and will only return on a
-                    // successful connection or an exception
-                    socket = mmServerSocket.accept();
-                } catch (IOException e) {
-                    Log.e(TAG, "accept() failed", e);
-                    break;
-                }
-                // If a connection was accepted
-                if (socket != null) {
-                    synchronized (this) {
-                        switch (mState) {
-                        case STATE_LISTEN:
-                        case STATE_CONNECTING:
-                            // Situation normal. Start the connected thread.
-                            connected(socket, socket.getRemoteDevice());
-                            break;
-                        case STATE_NOT_CONNECTED:
-                        case STATE_CONNECTED:
-                            // Either not ready or already connected. Terminate new socket.
-                            try {
-                                socket.close();
-                            } catch (IOException e) {
-                                Log.e(TAG, "Could not close unwanted socket", e);
-                            }
-                            break;
-                        default : break;                           
-                        }
-                    }
-                }
-            }
-            if (D) Log.i(TAG, "END mAcceptThread");
-        }
-        public void cancel() {
-            if (D) Log.d(TAG, "cancel " + this);
-            try {
-                mmServerSocket.close();
-            } catch (IOException e) {
-                Log.e(TAG, "close() of server failed", e);
-            }
-        }
-    }
+
     
     
     /**
@@ -279,13 +220,11 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
         // Cancel any thread currently running a connection
         if (mConnectedThread != null) {mConnectedThread.cancel(); mConnectedThread = null;}
         // Cancel the accept thread because we only want to connect to one device
-        if (mAcceptThread != null) {mAcceptThread.cancel(); mAcceptThread = null;}
-        // Start the thread to manage the connection and perform transmissions
         mConnectedThread = new ConnectedThread(socket);
         mConnectedThread.start();
         // Send the name of the connected device back to the UI Activity
-        MessageFlags msgFlags = MessageFlags.MESSAGE_DEVICE_NAME;
-        btDeviceHandler.onConnect();
+        //MessageFlags msgFlags = MessageFlags.MESSAGE_DEVICE_NAME;
+        btDeviceHandler.onConnect(device.getName());
 //        Message msg = mHandler.obtainMessage(msgFlags.getValue());
 //        Bundle bundle = new Bundle();
 //        bundle.putString(BluetoothService.DEVICE_NAME, device.getName());
@@ -328,8 +267,7 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
             while (true) {
             	ObjectInputStream ois;
                 try {
-                    MessageFlags msgFlags = MessageFlags.MESSAGE_READ;
-                    
+                   
                     ois = new ObjectInputStream(mmInStream);
                 	// Read from the InputStream
                     BTSendableInterface<?> myObj = (BTSendableInterface<?>) ois.readObject();
@@ -338,8 +276,6 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
                     //bytes = mmInStream.read(buffer);
                     // Send the obtained bytes to the UI Activity
                     
-                    //mHandler.obtainMessage(msgFlags.getValue(), bytes, -1, buffer)
-                    //        .sendToTarget();
                 } catch (OptionalDataException e) {
 					
 				} catch (IOException e) {
@@ -360,7 +296,6 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
          */
         private void write(BTSendableInterface<?> o) {
             try {
-            	MessageFlags msgFlags = MessageFlags.MESSAGE_WRITE;
             	ObjectOutputStream oos = new ObjectOutputStream(mmOutStream);
             	oos.writeObject(o);
                 //mmOutStream.write(buffer);
@@ -401,6 +336,8 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
      * Indicate that the connection attempt failed and notify the UI Activity.
      */
     private void connectionFailed() {
+    	if(D)
+    		Log.d(TAG,"connectionFailed()");
     	MessageFlags msgFlags = MessageFlags.MESSAGE_TOAST;
         setState(StateFlags.STATE_LISTEN);
         // Send a failure message back to the Activity
@@ -409,15 +346,16 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
 //        bundle.putString(BluetoothService.TOAST, "Unable to connect device");
 //        msg.setData(bundle);
 //        mHandler.sendMessage(msg);
-        btDeviceHandler.onFailure(new Exception()); // TODO: fix
+//        btDeviceHandler.onFailure(new Exception()); // TODO: fix
     }
     
     /**
      * Indicate that the connection was lost and notify the UI Activity.
      */
     private void connectionLost() {
-    	MessageFlags msgFlags = MessageFlags.MESSAGE_TOAST;
+    	//MessageFlags msgFlags = MessageFlags.MESSAGE_TOAST;
         setState(StateFlags.STATE_LISTEN);
+        //btDeviceHandler.onFailure(e)//Adarsh
         // Send a failure message back to the Activity
 //        Message msg = mHandler.obtainMessage(msgFlags.getValue());
 //        Bundle bundle = new Bundle();
@@ -434,7 +372,6 @@ public class PairedBTDevices extends BluetoothHealthMonitoringDevice implements 
         if (D) Log.d(TAG, "stop");
         if (mConnectThread != null) {mConnectThread.cancel(); mConnectThread = null;}
         if (mConnectedThread != null) {mConnectedThread.cancel(); mConnectedThread = null;}
-        if (mAcceptThread != null) {mAcceptThread.cancel(); mAcceptThread = null;}
         setState(StateFlags.STATE_NONE);
     }
     

@@ -3,12 +3,16 @@
  */
 package edu.berkeley.monitoring.util.bluetooth;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Set;
+import java.util.UUID;
 
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothServerSocket;
+import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -56,20 +60,28 @@ public class BluetoothService{
 	 * @see edu.berkeley.monitoring.util.bluetoothservices.Bluetooth#initializeAdapter()
 	 */
 	public BluetoothAdapter mBluetoothAdapter;
+    private AcceptThread mAcceptThread;
     // Return Intent extra
     public static String EXTRA_DEVICE_ADDRESS = "device_address";    
     // Key names received from the BluetoothChatService Handler
     public static final String DEVICE_NAME = "device_name";
     public static final String TOAST = "toast";
     
+    
     private final int REQUEST_ENABLE_BT = 2;
     //TODO     
     MessageFlags msgFlags;
   
+    ArrayList<PairedBTDevices> pairedDevicesList;
     
     //Debugging purposes
     private static final String TAG = "BluetoothChatService";
     private static final boolean D = true;
+    private StateFlags mState;
+    public static final UUID MY_UUID = UUID.fromString("e302e180-7efd-11e4-80c6-0002a5d5c51b");
+    
+    // Name for the SDP record when creating server socket
+    private static final String NAME = "BluetoothDevice";
     
     //Thread to start connection
     //Message handler
@@ -98,7 +110,15 @@ public class BluetoothService{
         if (mBluetoothAdapter == null) {
         	throw new BluetoothExceptions(BluetoothExceptions.CANNOT_TURN_ON_BLUETOOTH);
         }
-        else{ 
+        else{
+        	
+        	// start listener for incoming connections
+        	
+        	if (mAcceptThread == null) {
+        		setState(StateFlags.STATE_LISTEN);
+                mAcceptThread = new AcceptThread();
+                mAcceptThread.start();
+            }
 
         	// Register for broadcasts when a device is discovered
         	IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
@@ -111,9 +131,118 @@ public class BluetoothService{
         	// Register for broadcasts when pairing is initiated
     		IntentFilter intent = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
     		parentActivity.registerReceiver(mPairReceiver, intent);
+    		
+    		pairedDevicesList = new ArrayList<PairedBTDevices>();
+            Set<BluetoothDevice> pairedBTDevices = mBluetoothAdapter.getBondedDevices();
+            PairedBTDevices pairedDevice;
+    		 
+            //If there are paired devices, add each one to the ArrayList
+            if (pairedBTDevices.size() > 0) {
+                for (BluetoothDevice device : pairedBTDevices) {
+                	pairedDevice = new PairedBTDevices(device);        
+                	pairedDevicesList.add(pairedDevice);               	
+                	//pairedDevice.start();
+                }    
+                pairedDevicesList.get(4).start();
+            }
+            //TODO:
+            //return ((int)pairedBTDevices.size());
+            //or
         }        
 	}
-
+	
+	/**
+	 * Return the state of the bluetooth adapter
+	 * @return mstate
+	 */
+	public StateFlags getState(){
+		return mState;
+	}
+	
+    /**
+     * Setting the state of the Bluetooth Service
+     */    
+    void setState(StateFlags state){
+    	mState = state;
+    	return;
+    }
+	
+    private class AcceptThread extends Thread {
+        // The local server socket
+        private final BluetoothServerSocket mmServerSocket;
+        public AcceptThread() {
+            BluetoothServerSocket tmp = null;
+            // Create a new listening server socket
+            try {
+                tmp = mBluetoothAdapter.listenUsingRfcommWithServiceRecord(NAME, MY_UUID);
+            } catch (IOException e) {
+                Log.e(TAG, "listen() failed", e);
+            }
+            mmServerSocket = tmp;
+        }
+        public void run() {
+            if (D) Log.d(TAG, "BEGIN mAcceptThread" + this);
+            setName("AcceptThread");
+            BluetoothSocket socket = null;
+            // Listen to the server socket if we're not connected
+            while (mState != StateFlags.STATE_CONNECTED) {
+                try {
+                    // This is a blocking call and will only return on a
+                    // successful connection or an exception
+                    socket = mmServerSocket.accept();
+                } catch (IOException e) {
+                    Log.e(TAG, "accept() failed", e);
+                    break;
+                }
+                // If a connection was accepted
+                if (socket != null) {
+                	int requesterID = -1;
+                    synchronized (this) {
+                        switch (mState) {                        
+                        case STATE_LISTEN:
+                          BluetoothDevice requester = socket.getRemoteDevice();
+          	        	  for (int i = 0; i < pairedDevicesList.size(); i++){
+        	        		  String devAddress = pairedDevicesList.get(i).getAddress();
+        	        		  if (devAddress.equals(requester.getAddress())){
+        	        			  requesterID = i;
+        	        			  setState(StateFlags.STATE_CONNECTING);
+        	        		  }
+        	        		  else {
+        	        			  setState(StateFlags.STATE_CONNECTED);
+        	        		  }
+          	        	  }
+                        case STATE_CONNECTING:
+                            // Situation normal. Start the connected thread.
+                        	pairedDevicesList.get(requesterID).connected(socket, socket.getRemoteDevice());
+                        	setState(StateFlags.STATE_CONNECTED);
+                            break;
+                        case STATE_NONE:
+                        case STATE_NOT_CONNECTED:
+                        case STATE_CONNECTED:
+                            // Either not ready or already connected. Terminate new socket.
+                            try {
+                                socket.close();
+                                setState(StateFlags.STATE_LISTEN);
+                            } catch (IOException e) {
+                                Log.e(TAG, "Could not close unwanted socket", e);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            if (D) Log.i(TAG, "END mAcceptThread");
+        }
+        public void cancel() {
+            if (D) Log.d(TAG, "cancel " + this);
+            try {
+                mmServerSocket.close();
+            } catch (IOException e) {
+                Log.e(TAG, "close() of server failed", e);
+            }
+        }
+    }
+    
 	/**
 	 * Turn on Bluetooth
 	 */
@@ -220,16 +349,12 @@ public class BluetoothService{
 	
 
 	
-	public void getPairedDevices(ArrayList<PairedBTDevices> pairedDevicesList) {
+	public void getPairedDevices() {
  
-        Set<BluetoothDevice> pairedBTDevices = mBluetoothAdapter.getBondedDevices();
-        PairedBTDevices pairedDevice;
- 
+        
         //If there are paired devices, add each one to the ArrayList
-        if (pairedBTDevices.size() > 0) {
-            for (BluetoothDevice device : pairedBTDevices) {
-            	pairedDevice = new PairedBTDevices(device);
-            	pairedDevicesList.add(pairedDevice);
+        if (pairedDevicesList.size() > 0) {
+            for (PairedBTDevices pairedDevice : pairedDevicesList) {
             	//TODO
             	bluetoothInterface.onObtainedOnePairedDevices(pairedDevice);
             }    		
@@ -271,6 +396,26 @@ public class BluetoothService{
         }        	
 	}
        
+	public PairedBTDevices pairToDevice(String address){
+			PairedBTDevices retDevice = null; 
+	        //If there are paired devices, add each one to the ArrayList
+	        if (pairedDevicesList.size() > 0) {
+	            /*for (PairedBTDevices pairedDevice : pairedDevicesList) {
+	            	String devAddress = pairedDevice.getAddress();
+	            	if (devAddress.equals(address)){
+	            		return pairedDevice;
+	            	}*/
+	        	  int i = 0;
+	        	  for (i = 0; i < pairedDevicesList.size(); i++){
+	        		  String devAddress = pairedDevicesList.get(i).getAddress();
+	        		  if (devAddress.equals(address)){
+	        			  retDevice = pairedDevicesList.get(i);
+	        			  return retDevice;
+	        		  }
+	        	  }
+	        }
+	        return retDevice;
+	 	}
     
  
     

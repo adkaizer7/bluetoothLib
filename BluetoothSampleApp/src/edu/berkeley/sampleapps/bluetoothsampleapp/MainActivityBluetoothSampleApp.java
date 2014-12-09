@@ -11,8 +11,15 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
+import edu.berkeley.monitoring.util.bluetooth.BTDeviceHandlerInterface;
+import edu.berkeley.monitoring.util.bluetooth.BTSendable;
+import edu.berkeley.monitoring.util.bluetooth.BTSendableInterface;
 import edu.berkeley.monitoring.util.bluetooth.BluetoothExceptions;
 import edu.berkeley.monitoring.util.bluetooth.BluetoothInterface;
 import edu.berkeley.monitoring.util.bluetooth.BluetoothService;
@@ -20,7 +27,7 @@ import edu.berkeley.monitoring.util.bluetooth.MessageFlags;
 import edu.berkeley.monitoring.util.bluetooth.PairedBTDevices;
 import edu.berkeley.monitoring.util.bluetooth.UnpairedBTDevices;
 
-public class MainActivityBluetoothSampleApp extends Activity implements BluetoothInterface{
+public class MainActivityBluetoothSampleApp extends Activity implements BluetoothInterface, BTDeviceHandlerInterface{
     private static final boolean D = true;
     private static final String TAG = "BluetoothChat";
     public static BluetoothService bluetoothServiceHandler;
@@ -33,6 +40,18 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
     public static ArrayList<UnpairedBTDevices> listUnpairedDevices;
     public static final String TOAST = "toast";
     private static final int REQUEST_PAIR_DEVICE = 1;
+    private static final int REQUEST_CONNECT_DEVICE = 2;
+    // Array adapter for the conversation thread
+    private ArrayAdapter<String> mConversationArrayAdapter;
+    private ListView mConversationView;
+    private EditText mOutEditText;
+    private Button mSendButton;
+    // String buffer for outgoing messages
+    private StringBuffer mOutStringBuffer;
+    PairedBTDevices pairedDevice;
+    
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -72,11 +91,11 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
         listUnpairedDevices = new ArrayList<UnpairedBTDevices>();
         
         // Initialize the array adapter for the conversation thread
-        //mConversationArrayAdapter = new ArrayAdapter<String>(this, R.layout.message);
-        //mConversationView = (ListView) findViewById(R.id.in);
-        //mConversationView.setAdapter(mConversationArrayAdapter);
-        // Initialize the compose field with a listener for the return key
-        //mOutEditText = (EditText) findViewById(R.id.edit_text_out);
+        mConversationArrayAdapter = new ArrayAdapter<String>(this, R.layout.message);
+        mConversationView = (ListView) findViewById(R.id.in);
+        mConversationView.setAdapter(mConversationArrayAdapter);
+        //Initialize the compose field with a listener for the return key
+        mOutEditText = (EditText) findViewById(R.id.editTextOut);
         //mOutEditText.setOnEditorActionListener(mWriteListener);
         // Initialize the send button with a listener that for click events
         mTurnOnBluetooth = (Button) findViewById(R.id.buttonTurnOnBT);
@@ -84,6 +103,19 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
             public void onClick(View v) {
             	bluetoothServiceHandler.switchOnBluetooth();
             }
+        });
+        
+        mSendButton = (Button) findViewById(R.id.buttonSend);
+        mSendButton.setOnClickListener(new OnClickListener(){
+        	public void onClick(View v){
+        		//TODO: the button should be hidden if we haven't yet paired to a device.
+                // Send a message using content of the edit text widget
+                TextView view = (TextView) findViewById(R.id.editTextOut);
+                String message = view.getText().toString();
+        		BTSendable<String> msg2Send = new BTSendable<String>(message);        		
+        		pairedDevice.write(msg2Send);
+        	}
+        	
         });
         
         mStartScan = (Button) findViewById(R.id.buttonStartScan);
@@ -102,21 +134,14 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
         	
         });
         
-        
         mEnlistPairedDevices = (Button) findViewById(R.id.buttonEnlistPairedDevices);
         mEnlistPairedDevices.setOnClickListener(new OnClickListener(){
         	public void onClick(View v){
-        		bluetoothServiceHandler.getPairedDevices(listPairedDevices);
+        		bluetoothServiceHandler.getPairedDevices();
         	}
         	
         });
-        //mMakeDiscoverable = (Button) findViewById(R.id.button_makeDiscoverable);
-        //mMakeDiscoverable.setOnClickListener(new OnClickListener() {
-        //    public void onClick(View v) {        // Ensure this device is discoverable by others
-        //        ensureDiscoverable();
-
-        //    }
-        //});
+        
         /**
          * mConnect2Device = (Button) findViewById(R.id.button_connect2device);
          
@@ -139,6 +164,8 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
         // Initialize the buffer for outgoing messages
         mOutStringBuffer = new StringBuffer("");*/
     }
+   
+    
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
@@ -178,7 +205,7 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
         if (D)
         	Log.e(TAG,"onFinishedObtainingPairedDevices");
         Intent serverIntent = new Intent(thisActivity, ListPairedDevices.class);
-        this.startActivity(serverIntent);      		
+        this.startActivityForResult(serverIntent,REQUEST_CONNECT_DEVICE);      		
 		
 	}
 
@@ -259,6 +286,20 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
                 PairedBTDevices pairedBTDevice = device.pairToDevice(device);
             }
             break;
+        case REQUEST_CONNECT_DEVICE:
+        {
+            if (resultCode == Activity.RESULT_OK) {
+                // Get the device address
+                String address = data.getExtras()
+                                     .getString(ListPairedDevices.SELECTED_PAIRED_DEVICE);
+                // Attempt to connect to the device
+                PairedBTDevices pairedBTDevice = bluetoothServiceHandler.pairToDevice(address);
+                pairedBTDevice.connect();
+                
+            }
+
+        	
+        }break;
 //        case REQUEST_ENABLE_BT:
 //            // When the request to enable Bluetooth returns
 //            if (resultCode == Activity.RESULT_OK) {
@@ -288,5 +329,17 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
 		// TODO Auto-generated method stub
 		listPairedDevices.add(pairedBTDevice);		
 	}
+	
+	public void onReceive(BTSendableInterface<?> o){
+		
+	}
+	public void onFailure(Exception e){
+		
+	}
+	public void onConnect(String name){
+		String a = new String();
+		a = name;
+	}
 }
+
 
