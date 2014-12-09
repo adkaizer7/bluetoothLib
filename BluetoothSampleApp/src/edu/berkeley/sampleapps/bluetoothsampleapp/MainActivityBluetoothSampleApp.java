@@ -228,6 +228,10 @@ public class MainActivityBluetoothSampleApp extends Activity implements Bluetoot
 		
 	}
 	
+	public void onIncomingConnection(PairedBTDevices pairedDevice){
+        pairedDevice.registerHandler(this);
+	}
+	
     // The Handler that gets information back from the BluetoothChatService
     private final Handler msgHandler = new Handler() {
         @Override

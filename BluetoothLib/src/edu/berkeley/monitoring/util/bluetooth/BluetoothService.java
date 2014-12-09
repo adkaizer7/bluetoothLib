@@ -187,6 +187,7 @@ public class BluetoothService{
 	                    // This is a blocking call and will only return on a
 	                    // successful connection or an exception
 	                    socket = mmServerSocket.accept();
+	                    mState = StateFlags.STATE_CONNECTING;
 	                } catch (IOException e) {
 	                    Log.e(TAG, "accept() failed", e);
 	                    break;
@@ -194,18 +195,19 @@ public class BluetoothService{
                 }
                 // If a connection was accepted
                 if (socket != null) {
-                    synchronized (this) {
+                    synchronized (BluetoothService.this) {
                         switch (mState) {                        
                         case STATE_LISTEN:
+                        	break;
                         case STATE_CONNECTING:
                           BluetoothDevice requester = socket.getRemoteDevice();
           	        	  for (int i = 0; i < pairedDevicesList.size(); i++){
         	        		  String devAddress = pairedDevicesList.get(i).getAddress();
         	        		  if (devAddress.equals(requester.getAddress())){
         	        			  setState(StateFlags.STATE_CONNECTED);
-        	        			  PairedBTDevices pairedDevice = pairedDevicesList.get(i); 
+        	        			  PairedBTDevices pairedDevice = pairedDevicesList.get(i);
+        	        			  bluetoothInterface.onIncomingConnection(pairedDevice);
         	        			  pairedDevice.connected(socket, socket.getRemoteDevice());
-
         	        			  break;
         	        		  }
                           /*for (PairedBTDevices pairedDevice : pairedDevicesList){
@@ -217,7 +219,9 @@ public class BluetoothService{
           	        	  }
           	        	break;
                         case STATE_NONE:
+                        	break;
                         case STATE_NOT_CONNECTED:
+                        	break;
                         case STATE_CONNECTED:
                             // Either not ready or already connected. Terminate new socket.
                             try {
